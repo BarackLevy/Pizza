@@ -1,130 +1,96 @@
 ﻿"use client";
-import { useState } from "react";
-const menu: Record<string,{icon:string;color:string;items:{name:string;desc:string;price:number;extra?:string}[]}> = {
-"פיצות":{icon:"🍕",color:"from-red-900/40 to-orange-900/20",items:[{name:"מגש אישי S",desc:"מושלם לאחד",price:25,extra:"תוספת למנגש +4₪"},{name:"מגש זוגי M",desc:"לשניים",price:35,extra:"תוספת למנגש +8₪"},{name:"מגש משפחתי L",desc:"לכל המשפחה",price:45,extra:"תוספת למנגש +10₪"},{name:"מגש ענק XL",desc:"לרעבים האמיתיים",price:55,extra:"תוספת למנגש +12₪"}]},
-"זיווה":{icon:"🥙",color:"from-amber-900/40 to-yellow-900/20",items:[{name:"זיווה רגילה",desc:"גבינת מוצרלה",price:42},{name:"זיווה זיתים",desc:"מוצרלה וזיתים",price:42},{name:"זיווה פטריות",desc:"מוצרלה ופטריות",price:42},{name:"זיווה מעורבת",desc:"מוצרלה ובולגרית",price:42},{name:"זיווה יוונית",desc:"בולגרית, זיתים שחורים ובצל",price:42}]},
-"האיטלקיה":{icon:"🫓",color:"from-green-900/40 to-emerald-900/20",items:[{name:"רביולי תרד",desc:"ריקוטה ותרד",price:45},{name:"רביולי ארטישוק",desc:"ארטישוק וגבינה",price:45},{name:"רביולי ריקוטה",desc:"גבינת ריקוטה",price:45},{name:"רביולי פרמזן",desc:"גבינת פרמזן",price:45},{name:"רביולי גבינות",desc:"4 גבינות ברוטב אלפרדו",price:45},{name:"רביולי בטטה",desc:"גבינה ובטטה ברוטב אלפרדו",price:45},{name:"רביולי פטריות",desc:"פטריות וגבינה ברוטב אלפרדו",price:45}]},
-"פסטות":{icon:"🍝",color:"from-yellow-900/40 to-amber-900/20",items:[{name:"פטוצ'יני / ספגטי / פנה",desc:"ברוטב עגבניות",price:30},{name:"רוטב שמנת פטריות / רוזה מיקס",desc:"מומלץ!",price:40},{name:"תפוח אדמה",desc:"ברוטב אלפרדו",price:35},{name:"ניוקי תפוח אדמה",desc:"ברוטב אלפרדו",price:35},{name:"ניוקי מעורב",desc:"תפוח אדמה, תרד ובטטה",price:35}]},
-"מלאווח":{icon:"🥞",color:"from-orange-900/40 to-red-900/20",items:[{name:"מלאווח רגיל",desc:"עגבניות מגורדות וביצה",price:25},{name:"מלאווח תחינה",desc:"טחינה, עגבניות וביצה",price:25},{name:"מלאווח סוניסאי",desc:"ביצה, זיתים, טונה ועגבניות",price:30},{name:"מלאווח יווני",desc:"ביצה, בולגרית, זיתים שחורים וזעתר",price:30},{name:"מלאווח הבית",desc:"ביצה, בולגרית, טונה, פטריות ובצל",price:30},{name:"⭐ מלאווח פיצה",desc:"תוספת אחת חינם מתוספות הפיצה",price:35},{name:"מלאווח ביצה עין",desc:"2 ביצים וגבינת מוצרלה",price:35},{name:"מלאווח הביתה",desc:"אפוי עם ביצה",price:35},{name:"מלאווח פתוח",desc:"רסק, ביצה ואריסה",price:30},{name:"ג'חנון",desc:"עגבניות מגורדות, ביצה וחריף",price:25}]},
-"סלטים":{icon:"🥗",color:"from-lime-900/40 to-green-900/20",items:[{name:"סלט יווני קטן",desc:"חסה, מלפפון, עגבניה, זיתים שחורים, תירס, בולגרית וזעתר",price:40},{name:"סלט יווני גדול",desc:"חסה, מלפפון, עגבניה, זיתים שחורים, תירס, בולגרית וזעתר",price:50},{name:"סלט טונה קטן",desc:"חסה, מלפפון, עגבניה, זיתים ירוקים, תירס וטונה",price:40},{name:"סלט טונה גדול",desc:"חסה, מלפפון, עגבניה, זיתים ירוקים, תירס וטונה",price:50},{name:"סלט ירקות קטן",desc:"חסה, מלפפון, עגבניה ובצל",price:40},{name:"סלט ירקות גדול",desc:"חסה, מלפפון, עגבניה ובצל",price:50}]},
-"קינוחים":{icon:"🍰",color:"from-pink-900/40 to-rose-900/20",items:[{name:"מאפה זיווה",desc:"נוטלה / שוקולד השחר",price:35},{name:"בלינצ'ס",desc:"2 יח׳, גבינה / שוקולד / נוטלה",price:20},{name:"סופלה שוקולד חם",desc:"טרי מהתנור",price:25},{name:"מלבי",desc:"קינוח חלבי קלאסי",price:12},{name:"עוגת גבינה פרורים",desc:"",price:12},{name:"עוגת גבינה אוקמנית",desc:"",price:12},{name:"פנקוטה",desc:"",price:12},{name:"סברינה",desc:"",price:15},{name:"בואריה",desc:"",price:12},{name:"מוס ריבת חלב",desc:"",price:12},{name:"הקאצ'ה",desc:"",price:12},{name:"מוס שוקולד",desc:"",price:12}]},
-"לחם ומסבוסה":{icon:"🍞",color:"from-stone-900/40 to-neutral-900/20",items:[{name:"לחם שום S",desc:"עם מיקס גבינות",price:25},{name:"לחם שום M",desc:"עם מיקס גבינות",price:35},{name:"מסבוסה",desc:"תפו״א ביצה וגבינה / רוטב פיצה / ארבע גבינות / אלפרדו",price:32}]}
+import { useState, useEffect } from "react";
+import Link from "next/link";
+const T = {
+  he:{nav:["בית","תפריט","גלריה","צור קשר"],order:"הזמן עכשיו",pickup:"איסוף עצמי",delivery:"משלוח",waze:"נווט אלינו",phone:"התקשר",hours:"שעות פעילות",h1:"א׳–ה׳  15:00 – 23:45",h2:"שישי–שבת  12:00 – 00:00",slogan:"קייטרינג פיצה",sub:"אילת • מטבח ביתי עם אהבה"},
+  en:{nav:["Home","Menu","Gallery","Contact"],order:"Order Now",pickup:"Pickup",delivery:"Delivery",waze:"Navigate",phone:"Call",hours:"Hours",h1:"Sun–Thu  15:00 – 23:45",h2:"Fri–Sat  12:00 – 00:00",slogan:"Pizza Catering",sub:"Eilat • Homemade with Love"},
+  ru:{nav:["Главная","Меню","Галерея","Контакты"],order:"Заказать",pickup:"Самовывоз",delivery:"Доставка",waze:"Маршрут",phone:"Позвонить",hours:"Часы",h1:"Вс–Чт  15:00 – 23:45",h2:"Пт–Сб  12:00 – 00:00",slogan:"Пицца Кейтеринг",sub:"Эйлат • Готовим с любовью"}
 };
+const links = ["/","/menu","/gallery","/contact"];
 export default function Home() {
-  const [cat, setCat] = useState("פיצות");
-  const [cart, setCart] = useState<{name:string;price:number;qty:number}[]>([]);
-  const [cartOpen, setCartOpen] = useState(false);
-  const add = (n:string,p:number) => setCart(prev=>{const e=prev.find(i=>i.name===n);return e?prev.map(i=>i.name===n?{...i,qty:i.qty+1}:i):[...prev,{name:n,price:p,qty:1}]});
-  const rem = (n:string) => setCart(prev=>{const e=prev.find(i=>i.name===n);return e&&e.qty>1?prev.map(i=>i.name===n?{...i,qty:i.qty-1}:i):prev.filter(i=>i.name!==n)});
-  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
-  const totalQ = cart.reduce((s,i)=>s+i.qty,0);
-  const current = menu[cat];
+  const [lang,setLang]=useState<"he"|"en"|"ru">("he");
+  const [scrolled,setScrolled]=useState(false);
+  const txt=T[lang];
+  const rtl=lang==="he";
+  useEffect(()=>{
+    const fn=()=>setScrolled(window.scrollY>40);
+    window.addEventListener("scroll",fn);
+    return ()=>window.removeEventListener("scroll",fn);
+  },[]);
   return (
-    <div dir="rtl" className="min-h-screen text-white" style={{background:"#0a0a0a",fontFamily:"'Heebo',sans-serif"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet"/>
-      <div style={{background:"linear-gradient(180deg,#1a0000 0%,#0a0a0a 100%)",position:"fixed",inset:0,zIndex:0,pointerEvents:"none"}}/>
-      <header style={{position:"sticky",top:0,zIndex:40,background:"rgba(10,10,10,0.97)",borderBottom:"1px solid rgba(255,255,255,0.06)",backdropFilter:"blur(20px)"}}>
-        <div style={{maxWidth:600,margin:"0 auto",padding:"14px 16px"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:28}}>🍕</span>
-                <div>
-                  <h1 style={{fontSize:20,fontWeight:900,margin:0,letterSpacing:-0.5}}>קייטרינג פיצה</h1>
-                  <p style={{fontSize:11,color:"#ef4444",margin:0,fontWeight:600,letterSpacing:1}}>אילת • משלוחים ואיסוף עצמי</p>
-                </div>
-              </div>
-            </div>
-            <button onClick={()=>setCartOpen(true)} style={{position:"relative",background:totalQ>0?"#dc2626":"#1f1f1f",border:totalQ>0?"none":"1px solid rgba(255,255,255,0.1)",borderRadius:14,padding:"10px 18px",fontWeight:800,fontSize:14,color:"white",cursor:"pointer",display:"flex",alignItems:"center",gap:6,transition:"all 0.2s",fontFamily:"inherit"}}>
-              <span>🛒</span><span>עגלה</span>
-              {totalQ>0&&<span style={{position:"absolute",top:-8,left:-8,background:"white",color:"#dc2626",fontSize:11,fontWeight:900,borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center"}}>{totalQ}</span>}
-            </button>
+    <div dir={rtl?"rtl":"ltr"} style={{minHeight:"100vh",background:"#111",color:"#fff",fontFamily:"'Heebo',sans-serif"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet"/>
+      <style>{`*{margin:0;padding:0;box-sizing:border-box} a{text-decoration:none;color:inherit} button{cursor:pointer;font-family:inherit} .nav-link{position:relative;font-size:13px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.7);transition:color 0.2s} .nav-link:hover{color:#fff} .nav-link::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:1px;background:#c8102e;transform:scaleX(0);transition:transform 0.2s} .nav-link:hover::after{transform:scaleX(1)} .btn-primary{background:#c8102e;color:#fff;border:none;padding:14px 32px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;border-radius:2px;transition:background 0.2s} .btn-primary:hover{background:#a00d25} .btn-secondary{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.3);padding:13px 28px;font-size:13px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;border-radius:2px;transition:all 0.2s} .btn-secondary:hover{border-color:#fff;background:rgba(255,255,255,0.05)}`}</style>
+      <header style={{position:"fixed",top:0,right:0,left:0,zIndex:100,transition:"all 0.3s",background:scrolled?"rgba(17,17,17,0.97)":"transparent",borderBottom:scrolled?"1px solid rgba(255,255,255,0.08)":"none",backdropFilter:scrolled?"blur(12px)":"none"}}>
+        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 32px",height:64,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{display:"flex",flexDirection:"column",lineHeight:1}}>
+            <span style={{fontSize:18,fontWeight:900,letterSpacing:-0.5,color:"#fff"}}>קייטרינג פיצה</span>
+            <span style={{fontSize:9,fontWeight:400,letterSpacing:3,color:"#c8102e",textTransform:"uppercase",marginTop:2}}>EILAT</span>
           </div>
-          <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
-            {Object.entries(menu).map(([k,v])=>(
-              <button key={k} onClick={()=>setCat(k)} style={{display:"flex",alignItems:"center",gap:5,padding:"8px 14px",borderRadius:12,fontSize:13,fontWeight:700,whiteSpace:"nowrap",cursor:"pointer",fontFamily:"inherit",transition:"all 0.2s",background:cat===k?"#dc2626":"rgba(255,255,255,0.05)",color:cat===k?"white":"rgba(255,255,255,0.5)",border:cat===k?"none":"1px solid rgba(255,255,255,0.06)"}}>
-                <span>{v.icon}</span><span>{k}</span>
+          <nav style={{display:"flex",gap:32,alignItems:"center"}}>
+            {txt.nav.map((label,i)=>(
+              <a key={i} href={links[i]} className="nav-link">{label}</a>
+            ))}
+          </nav>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {(["he","en","ru"] as const).map(l=>(
+              <button key={l} onClick={()=>setLang(l)} style={{background:"transparent",border:"none",color:lang===l?"#fff":"rgba(255,255,255,0.35)",fontSize:11,fontWeight:lang===l?700:400,letterSpacing:1,padding:"4px 6px",transition:"color 0.2s",textTransform:"uppercase"}}>
+                {l==="he"?"עב":l==="en"?"EN":"RU"}
               </button>
             ))}
           </div>
         </div>
       </header>
-      <main style={{maxWidth:600,margin:"0 auto",padding:"24px 16px",position:"relative",zIndex:1}}>
-        <div style={{marginBottom:20}}>
-          <h2 style={{fontSize:26,fontWeight:900,margin:0,letterSpacing:-0.5}}>{current.icon} {cat}</h2>
-          <div style={{width:40,height:3,background:"#dc2626",borderRadius:2,marginTop:6}}/>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {current.items.map((item,idx)=>{
-            const ic=cart.find(i=>i.name===item.name);
-            const isSpecial=item.name.startsWith("⭐");
-            return (
-              <div key={item.name} style={{background:isSpecial?"rgba(220,38,38,0.08)":"rgba(255,255,255,0.03)",border:isSpecial?"1px solid rgba(220,38,38,0.3)":"1px solid rgba(255,255,255,0.06)",borderRadius:16,padding:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,transition:"all 0.2s"}}>
-                <div style={{flex:1}}>
-                  <p style={{fontWeight:800,fontSize:15,margin:0,color:isSpecial?"#fca5a5":"white"}}>{item.name}</p>
-                  {item.desc&&<p style={{color:"rgba(255,255,255,0.4)",fontSize:12,marginTop:3,marginBottom:0}}>{item.desc}</p>}
-                  {item.extra&&<p style={{color:"rgba(255,255,255,0.25)",fontSize:11,marginTop:2,marginBottom:0}}>{item.extra}</p>}
-                  <p style={{color:"#ef4444",fontWeight:900,fontSize:18,marginTop:6,marginBottom:0}}>{item.price}<span style={{fontSize:12,marginRight:1}}>₪</span></p>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                  {ic?(
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <button onClick={()=>rem(item.name)} style={{width:32,height:32,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.1)",color:"white",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>−</button>
-                      <span style={{fontWeight:900,fontSize:16,minWidth:20,textAlign:"center"}}>{ic.qty}</span>
-                      <button onClick={()=>add(item.name,item.price)} style={{width:32,height:32,borderRadius:"50%",background:"#dc2626",border:"none",color:"white",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>+</button>
-                    </div>
-                  ):(
-                    <button onClick={()=>add(item.name,item.price)} style={{background:"rgba(220,38,38,0.15)",border:"1px solid rgba(220,38,38,0.4)",borderRadius:12,padding:"8px 18px",color:"#fca5a5",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",transition:"all 0.2s"}}>הוסף +</button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </main>
-      {cartOpen&&(
-        <div style={{position:"fixed",inset:0,zIndex:50,display:"flex"}}>
-          <div style={{flex:1,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)"}} onClick={()=>setCartOpen(false)}/>
-          <div dir="rtl" style={{width:340,background:"#0f0f0f",borderLeft:"1px solid rgba(255,255,255,0.08)",display:"flex",flexDirection:"column",height:"100%",fontFamily:"inherit"}}>
-            <div style={{padding:"20px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <h2 style={{margin:0,fontSize:18,fontWeight:900}}>🛒 העגלה שלי</h2>
-              <button onClick={()=>setCartOpen(false)} style={{background:"rgba(255,255,255,0.06)",border:"none",color:"rgba(255,255,255,0.6)",fontSize:20,width:32,height:32,borderRadius:8,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>×</button>
+      <div style={{position:"relative",height:"100vh",overflow:"hidden"}}>
+        <img src="/images/פיצה עם תוספות.png" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(17,17,17,0.85) 0%,rgba(17,17,17,0.5) 50%,rgba(17,17,17,0.3) 100%)"}}/>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:rtl?"flex-end":"flex-start",padding:"0 80px"}}>
+          <div style={{maxWidth:520}}>
+            <p style={{fontSize:10,fontWeight:500,letterSpacing:5,color:"#c8102e",textTransform:"uppercase",marginBottom:16}}>אילת • EILAT</p>
+            <h1 style={{fontSize:58,fontWeight:900,lineHeight:1.0,letterSpacing:-2,marginBottom:16}}>{txt.slogan}</h1>
+            <p style={{fontSize:15,fontWeight:300,color:"rgba(255,255,255,0.65)",letterSpacing:0.5,marginBottom:40,lineHeight:1.7}}>{txt.sub}</p>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <Link href="/menu" className="btn-primary">{txt.order}</Link>
+              <a href="https://waze.com/ul?q=קייטרינג+פיצה+אילת" target="_blank" className="btn-secondary">{txt.waze}</a>
+              <a href="tel:0866338384" className="btn-secondary">{txt.phone}</a>
             </div>
-            {cart.length===0?(
-              <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,color:"rgba(255,255,255,0.3)"}}>
-                <span style={{fontSize:48}}>🛒</span>
-                <p style={{margin:0,fontSize:14}}>העגלה ריקה</p>
-              </div>
-            ):(
-              <>
-                <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:12}}>
-                  {cart.map(item=>(
-                    <div key={item.name} style={{display:"flex",alignItems:"center",gap:10,padding:"12px",background:"rgba(255,255,255,0.03)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)"}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <p style={{margin:0,fontSize:13,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</p>
-                        <p style={{margin:0,fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:2}}>{item.price}₪ × {item.qty}</p>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <button onClick={()=>rem(item.name)} style={{width:26,height:26,borderRadius:"50%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.1)",color:"white",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>−</button>
-                        <span style={{fontWeight:800,fontSize:14,minWidth:16,textAlign:"center"}}>{item.qty}</span>
-                        <button onClick={()=>add(item.name,item.price)} style={{width:26,height:26,borderRadius:"50%",background:"rgba(220,38,38,0.3)",border:"1px solid rgba(220,38,38,0.4)",color:"white",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit"}}>+</button>
-                      </div>
-                      <span style={{color:"#ef4444",fontWeight:800,fontSize:14,minWidth:45,textAlign:"left"}}>{item.price*item.qty}₪</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{padding:16,borderTop:"1px solid rgba(255,255,255,0.06)"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                    <span style={{color:"rgba(255,255,255,0.5)",fontSize:14}}>סה"כ לתשלום</span>
-                    <span style={{fontSize:28,fontWeight:900,color:"white"}}>{total}<span style={{fontSize:16,marginRight:2}}>₪</span></span>
-                  </div>
-                  <button style={{width:"100%",background:"linear-gradient(135deg,#dc2626,#b91c1c)",border:"none",borderRadius:16,padding:"16px",color:"white",fontWeight:900,fontSize:17,cursor:"pointer",fontFamily:"inherit",letterSpacing:0.5}}>המשך לתשלום ←</button>
-                </div>
-              </>
-            )}
           </div>
         </div>
-      )}
+        <div style={{position:"absolute",bottom:40,left:"50%",transform:"translateX(-50%)",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+          <span style={{fontSize:10,letterSpacing:3,color:"rgba(255,255,255,0.4)",textTransform:"uppercase"}}>scroll</span>
+          <div style={{width:1,height:40,background:"linear-gradient(to bottom,rgba(255,255,255,0.4),transparent)"}}/>
+        </div>
+      </div>
+      <div style={{background:"#111",padding:"80px 32px"}}>
+        <div style={{maxWidth:900,margin:"0 auto",display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:1,background:"rgba(255,255,255,0.06)"}}>
+          {[{icon:"📍",title:"אילת",sub:"טיילת העיר"},{icon:"⏰",title:txt.hours,sub:`${txt.h1}\n${txt.h2}`},{icon:"📞",title:"08-633-83-84",sub:"הזמנות וקייטרינג"}].map((item,i)=>(
+            <div key={i} style={{background:"#111",padding:"40px 32px",textAlign:"center"}}>
+              <p style={{fontSize:22,marginBottom:12}}>{item.icon}</p>
+              <p style={{fontSize:13,fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>{item.title}</p>
+              <p style={{fontSize:12,color:"rgba(255,255,255,0.45)",lineHeight:1.8,whiteSpace:"pre-line"}}>{item.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={{background:"#0d0d0d",padding:"80px 32px"}}>
+        <div style={{maxWidth:900,margin:"0 auto"}}>
+          <p style={{fontSize:10,letterSpacing:4,color:"#c8102e",textTransform:"uppercase",marginBottom:16,textAlign:"center"}}>מהתפריט שלנו</p>
+          <h2 style={{fontSize:36,fontWeight:900,letterSpacing:-1,textAlign:"center",marginBottom:48}}>המנות המובילות</h2>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:2}}>
+            {[{img:"/images/פיצה עם תוספות.png",title:"פיצות"},{img:"/images/זיווה.png",title:"זיווה"},{img:"/images/מלאווח מגולגל.png",title:"מלאווח"},{img:"/images/סלט יווני עם בייגל הבית.png",title:"סלטים"},{img:"/images/בלינצ'ס.png",title:"קינוחים"},{img:"/images/מוקרם.png",title:"האיטלקיה"}].map((item,i)=>(
+              <Link key={i} href="/menu" style={{position:"relative",aspectRatio:"1",overflow:"hidden",display:"block"}}>
+                <img src={item.img} alt={item.title} style={{width:"100%",height:"100%",objectFit:"cover",transition:"transform 0.4s"}} onMouseOver={e=>(e.currentTarget.style.transform="scale(1.05)")} onMouseOut={e=>(e.currentTarget.style.transform="scale(1)")}/>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(0,0,0,0.7),transparent)",display:"flex",alignItems:"flex-end",padding:16}}>
+                  <span style={{fontSize:14,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{item.title}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div style={{textAlign:"center",marginTop:40}}>
+            <Link href="/menu" className="btn-primary">{txt.order}</Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
