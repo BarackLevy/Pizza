@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Heebo } from "next/font/google";
+import { CartProvider } from "@/lib/cart-context";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -18,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="he" dir="rtl" className={heebo.variable}>
       <body style={{ margin: 0, paddingBottom: 70, background: "#0a0a0a", color: "white" }}>
-        {children}
+        <CartProvider>{children}</CartProvider>
       </body>
     </html>
   );
