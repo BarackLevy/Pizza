@@ -31,5 +31,6 @@ export interface ModifierOption {
   group_id: string
   name_he: string
   price_delta: number
+  is_special: boolean   // added in migration 0003
   sort_order: number
 }
