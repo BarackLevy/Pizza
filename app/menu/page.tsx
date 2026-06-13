@@ -22,6 +22,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 export default function MenuPage() {
   const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
   const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState(false);
   const [cat,        setCat]        = useState("");
   const [cartOpen,   setCartOpen]   = useState(false);
 
@@ -30,24 +31,55 @@ export default function MenuPage() {
 
   const cart = useCart();
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
+    setError(false);
     fetchMenu()
       .then((data) => {
         setCategories(data);
         if (data.length > 0) setCat(data[0].name_he);
       })
-      .catch(console.error)
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
 
-  const current      = categories.find((c) => c.name_he === cat);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []);
+
+  const current       = categories.find((c) => c.name_he === cat);
   const pizzaProducts = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
-  const isPizzaCat   = cat === PIZZA_CATEGORY;
+  const isPizzaCat    = cat === PIZZA_CATEGORY;
 
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 14 }}>טוען תפריט...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div dir="rtl" style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontSize: 40, marginBottom: 16 }}>📡</p>
+          <p style={{ color: "white", fontWeight: 800, fontSize: 17, margin: "0 0 8px" }}>
+            לא הצלחנו לטעון את התפריט
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, margin: "0 0 28px" }}>
+            בדוק את החיבור לאינטרנט ונסה שוב
+          </p>
+          <button
+            onClick={load}
+            style={{
+              background: "#dc2626", border: "none", borderRadius: 14,
+              padding: "13px 36px", color: "white", fontWeight: 900,
+              fontSize: 15, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            נסה שוב
+          </button>
+        </div>
       </div>
     );
   }

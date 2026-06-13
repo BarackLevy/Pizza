@@ -16,14 +16,68 @@ import type { CartModifier } from "@/lib/cart-context";
 
 const SIZES: SizeLabel[] = ["S", "M", "L", "XL"];
 
-const COVERAGE_OPTIONS: ToppingCoverage[] = ["none", "whole", "right", "left"];
-
-const COVERAGE_LABEL: Record<ToppingCoverage, string> = {
-  none:  "✕",
+// Used in cart modifier option_name — never shown on screen
+const COVERAGE_LABEL: Record<Exclude<ToppingCoverage, "none">, string> = {
   whole: "שלם",
   right: "½ ימין",
   left:  "½ שמאל",
 };
+
+// ── Pizza Hut–style circle icon ───────────────────────────────────────────────
+// side: "whole" = full circle, "left" = left half filled, "right" = right half filled
+// Uses a clipPath rect to clip a filled circle to the relevant half.
+// Each SVG embeds its own <defs> so clipPath IDs never collide across toppings.
+type CircleSide = "whole" | "left" | "right";
+
+function ToppingCircleIcon({
+  side,
+  active,
+  clipId,
+}: {
+  side:   CircleSide;
+  active: boolean;
+  clipId: string;       // unique per (topping × side)
+}) {
+  const RED       = "#dc2626";
+  const fillColor = active ? RED : "#ffffff";
+  const stroke    = active ? RED : "rgba(255,255,255,0.6)";
+  const divider   = "rgba(0,0,0,0.35)";   // dark line so it reads on both white and red fill
+
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" style={{ display: "block" }}>
+      {/* Clip rect — only needed for half-circle fills */}
+      {side !== "whole" && (
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={side === "left" ? 0 : 12}
+              y="0"
+              width="12"
+              height="24"
+            />
+          </clipPath>
+        </defs>
+      )}
+
+      {/* Fill — always rendered; white when unselected, red when selected */}
+      {side === "whole" && (
+        <circle cx="12" cy="12" r="10.5" fill={fillColor} />
+      )}
+      {side !== "whole" && (
+        <circle cx="12" cy="12" r="10.5" fill={fillColor} clipPath={`url(#${clipId})`} />
+      )}
+
+      {/* Outline ring — always visible */}
+      <circle cx="12" cy="12" r="10.5" fill="none" stroke={stroke} strokeWidth="1.5" />
+
+      {/* Centre divider for half icons */}
+      {side !== "whole" && (
+        <line x1="12" y1="1.5" x2="12" y2="22.5" stroke={divider} strokeWidth="1.5" />
+      )}
+    </svg>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface Props {
   product:   Product;
@@ -73,7 +127,7 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
       const t = toppings.find((t) => t.id === s.id)!;
       return {
         option_id:   t.id,
-        option_name: `${t.name_he} – ${COVERAGE_LABEL[s.coverage]}`,
+        option_name: `${t.name_he} – ${COVERAGE_LABEL[s.coverage as Exclude<ToppingCoverage, "none">]}`,
         price_delta: toppingPrice(s.tier, size, s.coverage),
       };
     });
@@ -234,37 +288,36 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
                       )}
                     </div>
 
-                    {/* 4-state segmented control */}
-                    <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-                      {COVERAGE_OPTIONS.map((opt) => {
-                        const selected = cv === opt;
-                        return (
-                          <button
-                            key={opt}
-                            onClick={() =>
-                              setCoverages((prev) => ({ ...prev, [topping.id]: opt }))
-                            }
-                            style={{
-                              padding:      "4px 5px",
-                              borderRadius: 6,
-                              border:       "none",
-                              cursor:       "pointer",
-                              fontFamily:   "inherit",
-                              fontSize:     10,
-                              fontWeight:   700,
-                              minWidth:     opt === "none" ? 22 : opt === "whole" ? 30 : 44,
-                              background:   selected
-                                ? opt === "none"
-                                  ? "rgba(255,255,255,0.14)"
-                                  : "#dc2626"
-                                : "rgba(255,255,255,0.06)",
-                              color:        selected ? "white" : "rgba(255,255,255,0.35)",
-                            }}
-                          >
-                            {COVERAGE_LABEL[opt]}
-                          </button>
-                        );
-                      })}
+                    {/* Pizza Hut–style circle controls (whole / left-half / right-half) */}
+                    {/* RTL order: whole (rightmost) → left-half → right-half (leftmost) */}
+                    <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "center" }}>
+                      {(["whole", "left", "right"] as CircleSide[]).map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() =>
+                            setCoverages((prev) => ({
+                              ...prev,
+                              [topping.id]: prev[topping.id] === opt ? "none" : opt,
+                            }))
+                          }
+                          aria-label={COVERAGE_LABEL[opt]}
+                          style={{
+                            background: "none",
+                            border:     "none",
+                            padding:    "5px",
+                            cursor:     "pointer",
+                            display:    "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <ToppingCircleIcon
+                            side={opt}
+                            active={cv === opt}
+                            clipId={`tc-${topping.id.slice(0, 8)}-${opt}`}
+                          />
+                        </button>
+                      ))}
                     </div>
                   </div>
                 );
