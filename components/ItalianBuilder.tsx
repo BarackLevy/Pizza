@@ -22,7 +22,79 @@ const GROUP_FILLING = "מילוי רביולי";
 const GROUP_ADDONS  = "תוספות פסטה";
 const TYPE_RAVIOLI  = "רביולי";
 
-// ── Shared card grid ─────────────────────────────────────────────────────────
+// ── Type selector — 3-col grid with food photos ───────────────────────────────
+function TypeCardGrid({
+  options,
+  selectedId,
+  onSelect,
+}: {
+  options:    AddonOption[];
+  selectedId: string;
+  onSelect:   (id: string) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+      {options.map((opt) => {
+        const active = selectedId === opt.id;
+        return (
+          <button
+            key={opt.id}
+            onClick={() => onSelect(opt.id)}
+            style={{
+              background:   active ? "rgba(220,38,38,0.18)" : "rgba(255,255,255,0.04)",
+              border:       `2px solid ${active ? "#dc2626" : "rgba(255,255,255,0.08)"}`,
+              borderRadius: 12,
+              padding:      0,
+              cursor:       "pointer",
+              color:        "white",
+              fontFamily:   "inherit",
+              textAlign:    "center",
+              overflow:     "hidden",
+              transition:   "border-color 0.15s",
+            }}
+          >
+            {opt.image_url ? (
+              <div style={{ height: 68, overflow: "hidden" }}>
+                <img
+                  src={opt.image_url}
+                  alt=""
+                  style={{
+                    width:      "100%",
+                    height:     "100%",
+                    objectFit:  "cover",
+                    display:    "block",
+                    opacity:    active ? 1 : 0.7,
+                    transition: "opacity 0.15s",
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{
+                height:         68,
+                display:        "flex",
+                alignItems:     "center",
+                justifyContent: "center",
+              }}>
+                <span style={{ fontSize: 26 }}>🍝</span>
+              </div>
+            )}
+            <div style={{
+              padding:    "5px 4px 7px",
+              fontSize:   11,
+              fontWeight: active ? 900 : 500,
+              color:      active ? "#fca5a5" : "rgba(255,255,255,0.75)",
+              lineHeight: 1.3,
+            }}>
+              {opt.name_he}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Plain card grid (sauce / filling / add-ons) ───────────────────────────────
 function CardGrid({
   options,
   selectedId,
@@ -82,7 +154,6 @@ export default function ItalianBuilder({ product }: Props) {
   const [qty,               setQty]               = useState(1);
   const [confirmed,         setConfirmed]         = useState(false);
 
-  // Resets all selections to defaults — called on mount and after each add-to-cart.
   const applyDefaults = useCallback(
     (gs: AddonGroup[], rows: ItalianPricingRow[]) => {
       const typeGroup    = gs.find((g) => g.name_he === GROUP_TYPE);
@@ -121,7 +192,8 @@ export default function ItalianBuilder({ product }: Props) {
   const fillingGroup = groups.find((g) => g.name_he === GROUP_FILLING);
   const addonsGroup  = groups.find((g) => g.name_he === GROUP_ADDONS);
 
-  const selectedTypeName  = typeGroup?.options.find((o) => o.id === selectedTypeId)?.name_he  ?? "";
+  const selectedTypeOpt  = typeGroup?.options.find((o) => o.id === selectedTypeId);
+  const selectedTypeName  = selectedTypeOpt?.name_he  ?? "";
   const selectedSauceName = sauceGroup?.options.find((o) => o.id === selectedSauceId)?.name_he ?? "";
 
   const availableSauceNames = getAvailableSauces(selectedTypeName, pricingRows);
@@ -184,7 +256,7 @@ export default function ItalianBuilder({ product }: Props) {
       cart.add({
         product_id: product.id,
         name_he:    product.name_he,
-        unit_price: basePrice,   // add-on deltas live in modifiers
+        unit_price: basePrice,
         modifiers,
       });
     }
@@ -210,22 +282,49 @@ export default function ItalianBuilder({ product }: Props) {
     );
   }
 
+  const heroImage = selectedTypeOpt?.image_url ?? null;
+
   return (
     <div dir="rtl">
 
-      {/* Image / hero slot — placeholder until image_url is set on the product */}
-      {product.image_url ? (
-        <img
-          src={product.image_url}
-          alt=""
-          style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 16, marginBottom: 24 }}
-        />
+      {/* ── Hero — shows selected type image, updates as user picks ── */}
+      {heroImage ? (
+        <div style={{ position: "relative", marginBottom: 20 }}>
+          <img
+            src={heroImage}
+            alt={selectedTypeName}
+            style={{
+              width:        "100%",
+              height:       200,
+              objectFit:    "cover",
+              borderRadius: 16,
+              display:      "block",
+            }}
+          />
+          {/* Dark gradient overlay with selection summary */}
+          <div style={{
+            position:     "absolute",
+            bottom:       0,
+            left:         0,
+            right:        0,
+            background:   "linear-gradient(transparent, rgba(0,0,0,0.78))",
+            borderRadius: "0 0 16px 16px",
+            padding:      "28px 14px 14px",
+          }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "white" }}>האיטלקיה</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", marginTop: 3 }}>
+              {selectedTypeName && selectedSauceName
+                ? `${selectedTypeName} · ${selectedSauceName}`
+                : selectedTypeName || "בחר סוג"}
+            </div>
+          </div>
+        </div>
       ) : (
         <div style={{
           height:         164,
           background:     "linear-gradient(135deg, rgba(220,38,38,0.14) 0%, rgba(255,255,255,0.03) 100%)",
           borderRadius:   16,
-          marginBottom:   24,
+          marginBottom:   20,
           display:        "flex",
           flexDirection:  "column",
           alignItems:     "center",
@@ -243,11 +342,11 @@ export default function ItalianBuilder({ product }: Props) {
         </div>
       )}
 
-      {/* ── TYPE selector ─────────────────────────────────────────── */}
+      {/* ── TYPE selector — 3-col photo cards ─────────────────────── */}
       {typeGroup && (
         <div style={{ marginBottom: 22 }}>
           <p style={sectionLabel}>{typeGroup.name_he}</p>
-          <CardGrid
+          <TypeCardGrid
             options={typeGroup.options}
             selectedId={selectedTypeId}
             onSelect={handleTypeChange}
@@ -255,7 +354,7 @@ export default function ItalianBuilder({ product }: Props) {
         </div>
       )}
 
-      {/* ── SAUCE selector (filtered by chosen type) ──────────────── */}
+      {/* ── SAUCE selector ────────────────────────────────────────── */}
       {sauceGroup && filteredSauces.length > 0 && (
         <div style={{ marginBottom: 22 }}>
           <p style={sectionLabel}>{sauceGroup.name_he}</p>
@@ -267,7 +366,7 @@ export default function ItalianBuilder({ product }: Props) {
         </div>
       )}
 
-      {/* ── RAVIOLI FILLING (visible only when type = רביולי) ─────── */}
+      {/* ── RAVIOLI FILLING ───────────────────────────────────────── */}
       {showFilling && fillingGroup && (
         <div style={{ marginBottom: 22 }}>
           <p style={sectionLabel}>{fillingGroup.name_he}</p>
@@ -279,7 +378,7 @@ export default function ItalianBuilder({ product }: Props) {
         </div>
       )}
 
-      {/* ── ADD-ONS (multi-select toggles, not quantity steppers) ──── */}
+      {/* ── ADD-ONS (multi-select toggles) ────────────────────────── */}
       {addonsGroup && (
         <div style={{ marginBottom: 120 }}>
           <p style={sectionLabel}>{addonsGroup.name_he}</p>
@@ -316,20 +415,19 @@ export default function ItalianBuilder({ product }: Props) {
         </div>
       )}
 
-      {/* ── Sticky CTA — sits above the fixed bottom nav ────────────── */}
+      {/* ── Sticky CTA — sits above the fixed bottom nav ─────────── */}
       <div style={{
-        position:        "sticky",
-        bottom:          76,
-        marginLeft:      -16,
-        marginRight:     -16,
-        background:      "rgba(10,10,10,0.97)",
-        backdropFilter:  "blur(18px)",
-        borderTop:       "1px solid rgba(255,255,255,0.08)",
-        borderRadius:    "16px 16px 0 0",
-        padding:         "12px 16px 14px",
+        position:       "sticky",
+        bottom:         76,
+        marginLeft:     -16,
+        marginRight:    -16,
+        background:     "rgba(10,10,10,0.97)",
+        backdropFilter: "blur(18px)",
+        borderTop:      "1px solid rgba(255,255,255,0.08)",
+        borderRadius:   "16px 16px 0 0",
+        padding:        "12px 16px 14px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-          {/* Quantity stepper */}
           <div style={{
             display:      "flex",
             alignItems:   "center",
@@ -350,7 +448,6 @@ export default function ItalianBuilder({ product }: Props) {
             >+</button>
           </div>
 
-          {/* Live total */}
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 900, fontSize: 22 }}>{total}₪</div>
             {qty > 1 && (

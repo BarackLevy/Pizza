@@ -1,10 +1,11 @@
 import { supabase } from "@/lib/supabase/client";
 
 export interface AddonOption {
-  id: string;
-  name_he: string;
+  id:          string;
+  name_he:     string;
   price_delta: number;
-  sort_order: number;
+  sort_order:  number;
+  image_url:   string | null;
 }
 
 export interface AddonGroup {
@@ -66,7 +67,7 @@ export async function fetchAddonGroups(productId: string): Promise<AddonGroup[]>
   // 3. Fetch all options for those groups in one query
   const { data: opts, error: oErr } = await supabase
     .from("modifier_options")
-    .select("id, group_id, name_he, price_delta, sort_order")
+    .select("id, group_id, name_he, price_delta, sort_order, image_url")
     .in("group_id", addonGroupIds)
     .order("sort_order");
   if (oErr) throw oErr;
@@ -84,6 +85,7 @@ export async function fetchAddonGroups(productId: string): Promise<AddonGroup[]>
         name_he:     o.name_he     as string,
         price_delta: o.price_delta as number,
         sort_order:  o.sort_order  as number,
+        image_url:   (o.image_url  as string | null) ?? null,
       })),
   }));
 }
