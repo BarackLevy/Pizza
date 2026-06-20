@@ -46,3 +46,26 @@ export function extractSizeLabel(productNameHe: string): SizeLabel {
   const m = productNameHe.match(/\b(XL|L|M|S)\b/);
   return (m?.[1] ?? "S") as SizeLabel;
 }
+
+// ── Base pricing helpers — mirror the base_pricing table (migration 0004) ─────
+
+export interface BasePricingRow {
+  base_name:  string;
+  size_label: SizeLabel;
+  price:      number;
+}
+
+const SIZE_ORDER: SizeLabel[] = ["S", "M", "L", "XL"];
+
+/** Returns the sizes available for a given base, in display order. */
+export function getAvailableSizes(rows: BasePricingRow[], baseName: string): SizeLabel[] {
+  const avail = new Set(
+    rows.filter((r) => r.base_name === baseName).map((r) => r.size_label),
+  );
+  return SIZE_ORDER.filter((s) => avail.has(s));
+}
+
+/** Returns the base price for a given base + size combo, or 0 if not found. */
+export function getBasePrice(rows: BasePricingRow[], baseName: string, size: SizeLabel): number {
+  return rows.find((r) => r.base_name === baseName && r.size_label === size)?.price ?? 0;
+}

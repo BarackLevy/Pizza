@@ -1,20 +1,21 @@
 "use client";
 import { useState, useEffect } from "react";
 import type { Product } from "@/types/menu";
-import { fetchToppings } from "@/lib/pizza-modifiers";
-import type { ToppingOption } from "@/lib/pizza-modifiers";
+import { fetchToppings, fetchBases, fetchBasePricing } from "@/lib/pizza-modifiers";
+import type { ToppingOption, BaseOption } from "@/lib/pizza-modifiers";
 import {
   toppingPrice,
   pizzaUnitPrice,
   extractSizeLabel,
+  getAvailableSizes,
+  getBasePrice,
+  type BasePricingRow,
   type SizeLabel,
   type ToppingTier,
   type ToppingCoverage,
 } from "@/lib/pricing";
 import { useCart } from "@/lib/cart-context";
 import type { CartModifier } from "@/lib/cart-context";
-
-const SIZES: SizeLabel[] = ["S", "M", "L", "XL"];
 
 // Used in cart modifier option_name — never shown on screen
 const COVERAGE_LABEL: Record<Exclude<ToppingCoverage, "none">, string> = {
@@ -24,9 +25,6 @@ const COVERAGE_LABEL: Record<Exclude<ToppingCoverage, "none">, string> = {
 };
 
 // ── Pizza Hut–style circle icon ───────────────────────────────────────────────
-// side: "whole" = full circle, "left" = left half filled, "right" = right half filled
-// Uses a clipPath rect to clip a filled circle to the relevant half.
-// Each SVG embeds its own <defs> so clipPath IDs never collide across toppings.
 type CircleSide = "whole" | "left" | "right";
 
 function ToppingCircleIcon({
@@ -36,41 +34,29 @@ function ToppingCircleIcon({
 }: {
   side:   CircleSide;
   active: boolean;
-  clipId: string;       // unique per (topping × side)
+  clipId: string;
 }) {
   const RED       = "#dc2626";
   const fillColor = active ? RED : "#ffffff";
   const stroke    = active ? RED : "rgba(255,255,255,0.6)";
-  const divider   = "rgba(0,0,0,0.35)";   // dark line so it reads on both white and red fill
+  const divider   = "rgba(0,0,0,0.35)";
 
   return (
     <svg width="30" height="30" viewBox="0 0 24 24" style={{ display: "block" }}>
-      {/* Clip rect — only needed for half-circle fills */}
       {side !== "whole" && (
         <defs>
           <clipPath id={clipId}>
-            <rect
-              x={side === "left" ? 0 : 12}
-              y="0"
-              width="12"
-              height="24"
-            />
+            <rect x={side === "left" ? 0 : 12} y="0" width="12" height="24" />
           </clipPath>
         </defs>
       )}
-
-      {/* Fill — always rendered; white when unselected, red when selected */}
       {side === "whole" && (
         <circle cx="12" cy="12" r="10.5" fill={fillColor} />
       )}
       {side !== "whole" && (
         <circle cx="12" cy="12" r="10.5" fill={fillColor} clipPath={`url(#${clipId})`} />
       )}
-
-      {/* Outline ring — always visible */}
       <circle cx="12" cy="12" r="10.5" fill="none" stroke={stroke} strokeWidth="1.5" />
-
-      {/* Centre divider for half icons */}
       {side !== "whole" && (
         <line x1="12" y1="1.5" x2="12" y2="22.5" stroke={divider} strokeWidth="1.5" />
       )}
@@ -88,23 +74,55 @@ interface Props {
 export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) {
   const cart = useCart();
 
-  const [size,     setSize]     = useState<SizeLabel>(extractSizeLabel(product.name_he));
-  const [coverages, setCoverages] = useState<Record<string, ToppingCoverage>>({});
-  const [qty,      setQty]      = useState(1);
-  const [toppings, setToppings] = useState<ToppingOption[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [mounted,  setMounted]  = useState(false);
+  const [mounted,      setMounted]      = useState(false);
+  const [loading,      setLoading]      = useState(true);
+  const [toppings,     setToppings]     = useState<ToppingOption[]>([]);
+  const [bases,        setBases]        = useState<BaseOption[]>([]);
+  const [basePricing,  setBasePricing]  = useState<BasePricingRow[]>([]);
+  const [selectedBase, setSelectedBase] = useState<string>("");
+  const [size,         setSize]         = useState<SizeLabel>(extractSizeLabel(product.name_he));
+  const [coverages,    setCoverages]    = useState<Record<string, ToppingCoverage>>({});
+  const [qty,          setQty]          = useState(1);
 
+  // Load all data in parallel on mount
   useEffect(() => {
     setMounted(true);
-    fetchToppings()
-      .then(setToppings)
+    Promise.all([fetchToppings(), fetchBases(), fetchBasePricing()])
+      .then(([tops, bs, bp]) => {
+        setToppings(tops);
+        setBases(bs);
+        setBasePricing(bp);
+        if (bs.length > 0) setSelectedBase(bs[0].name_he);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
+  // When base changes, reset size if it's no longer available for that base
+  useEffect(() => {
+    if (!selectedBase || basePricing.length === 0) return;
+    const avail = getAvailableSizes(basePricing, selectedBase);
+    if (avail.length > 0 && !avail.includes(size)) {
+      setSize(avail[0]);
+    }
+  }, [selectedBase, basePricing]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const availableSizes: SizeLabel[] =
+    selectedBase && basePricing.length > 0
+      ? getAvailableSizes(basePricing, selectedBase)
+      : ["S", "M", "L", "XL"];
+
   const selectedProduct = allPizzas.find((p) => extractSizeLabel(p.name_he) === size) ?? product;
-  const basePrice = selectedProduct.base_price;
+
+  // Base price comes from base_pricing; fall back to product.base_price while loading
+  const basePrice =
+    selectedBase && basePricing.length > 0
+      ? getBasePrice(basePricing, selectedBase, size)
+      : selectedProduct.base_price;
+
+  // Swap main image to base-specific image when available; fall back to product image
+  const displayImageUrl =
+    bases.find((b) => b.name_he === selectedBase)?.image_url ?? selectedProduct.image_url;
 
   type Sel = { id: string; tier: ToppingTier; coverage: ToppingCoverage };
   const activeSelections: Sel[] = toppings
@@ -115,28 +133,34 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
     }))
     .filter((s) => s.coverage !== "none");
 
-  const unitPrice = pizzaUnitPrice(
-    basePrice,
-    size,
-    activeSelections,
-  );
-  const total = unitPrice * qty;
+  const unitPrice = pizzaUnitPrice(basePrice, size, activeSelections);
+  const total     = unitPrice * qty;
 
   function handleAdd() {
-    const modifiers: CartModifier[] = activeSelections.map((s) => {
-      const t = toppings.find((t) => t.id === s.id)!;
-      return {
-        option_id:   t.id,
-        option_name: `${t.name_he} – ${COVERAGE_LABEL[s.coverage as Exclude<ToppingCoverage, "none">]}`,
-        price_delta: toppingPrice(s.tier, size, s.coverage),
-      };
-    });
+    const baseOpt = bases.find((b) => b.name_he === selectedBase);
+    const modifiers: CartModifier[] = [
+      // Record the chosen base (price already captured in unit_price; delta = 0)
+      {
+        option_id:   baseOpt?.id ?? "",
+        option_name: selectedBase,
+        price_delta: 0,
+      },
+      // Topping modifiers with their price deltas
+      ...activeSelections.map((s) => {
+        const t = toppings.find((t) => t.id === s.id)!;
+        return {
+          option_id:   t.id,
+          option_name: `${t.name_he} – ${COVERAGE_LABEL[s.coverage as Exclude<ToppingCoverage, "none">]}`,
+          price_delta: toppingPrice(s.tier, size, s.coverage),
+        };
+      }),
+    ];
 
     for (let i = 0; i < qty; i++) {
       cart.add({
         product_id: selectedProduct.id,
         name_he:    selectedProduct.name_he,
-        unit_price: basePrice,
+        unit_price: basePrice,   // snapshot from base_pricing at time of add
         modifiers,
       });
     }
@@ -190,10 +214,10 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
         {/* Scrollable content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 8px" }}>
 
-          {/* Image */}
-          {selectedProduct.image_url && (
+          {/* Image — swaps to base-specific image when one is set */}
+          {displayImageUrl && (
             <img
-              src={selectedProduct.image_url}
+              src={displayImageUrl}
               alt=""
               style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 14, marginBottom: 10 }}
             />
@@ -209,15 +233,56 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
             </p>
           )}
 
+          {/* ── Base selector ── */}
+          <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>
+            בחר בסיס
+          </p>
+          {loading ? (
+            <p style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", padding: "12px 0 20px" }}>
+              טוען...
+            </p>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8, marginBottom: 22 }}>
+              {bases.map((b) => {
+                const active = selectedBase === b.name_he;
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => setSelectedBase(b.name_he)}
+                    style={{
+                      background:   active ? "#dc2626" : "rgba(255,255,255,0.06)",
+                      border:       `2px solid ${active ? "#dc2626" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 12,
+                      padding:      "12px 8px",
+                      cursor:       "pointer",
+                      color:        "white",
+                      fontFamily:   "inherit",
+                      textAlign:    "center",
+                      fontWeight:   active ? 900 : 500,
+                      fontSize:     14,
+                      lineHeight:   1.3,
+                      transition:   "background 0.15s, border-color 0.15s",
+                    }}
+                  >
+                    {b.name_he}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {/* ── Size selector ── */}
           <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: 1 }}>
             גודל
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 6, marginBottom: 22 }}>
-            {SIZES.map((s) => {
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${availableSizes.length},1fr)`, gap: 6, marginBottom: 22 }}>
+            {availableSizes.map((s) => {
               const p = allPizzas.find((p) => extractSizeLabel(p.name_he) === s);
               if (!p) return null;
               const active = size === s;
+              const sizePrice = selectedBase && basePricing.length > 0
+                ? getBasePrice(basePricing, selectedBase, s)
+                : p.base_price;
               return (
                 <button
                   key={s}
@@ -235,7 +300,7 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
                 >
                   <div style={{ fontWeight: 900, fontSize: 15 }}>{s}</div>
                   <div style={{ fontSize: 11, marginTop: 2, color: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.4)" }}>
-                    {p.base_price}₪
+                    {sizePrice}₪
                   </div>
                 </button>
               );
@@ -257,8 +322,8 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
           ) : (
             <div style={{ display: "flex", flexDirection: "column", marginBottom: 8 }}>
               {toppings.map((topping) => {
-                const cv   = (coverages[topping.id] ?? "none") as ToppingCoverage;
-                const tier = (topping.is_special ? "special" : "regular") as ToppingTier;
+                const cv      = (coverages[topping.id] ?? "none") as ToppingCoverage;
+                const tier    = (topping.is_special ? "special" : "regular") as ToppingTier;
                 const isActive = cv !== "none";
 
                 return (
@@ -289,7 +354,6 @@ export default function PizzaCustomizer({ product, allPizzas, onClose }: Props) 
                     </div>
 
                     {/* Pizza Hut–style circle controls (whole / left-half / right-half) */}
-                    {/* RTL order: whole (rightmost) → left-half → right-half (leftmost) */}
                     <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "center" }}>
                       {(["whole", "left", "right"] as CircleSide[]).map((opt) => (
                         <button
