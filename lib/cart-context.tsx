@@ -12,54 +12,71 @@ import {
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface CartModifier {
-  option_id: string;
+  option_id:   string;
   option_name: string;
   price_delta: number;
 }
 
 export interface CartItem {
+  /** Stable key: product_id + sorted modifier fingerprint.
+   *  Two orders of the same product with different choices get different line_ids
+   *  and appear as separate cart lines. Identical orders merge to ×N. */
+  line_id:    string;
   product_id: string;
-  name_he: string;
-  unit_price: number;   // base price, before modifiers
-  quantity: number;
-  modifiers: CartModifier[];
+  name_he:    string;
+  unit_price: number;   // base price before modifier deltas
+  quantity:   number;
+  modifiers:  CartModifier[];
 }
 
 interface AddPayload {
   product_id: string;
-  name_he: string;
+  name_he:    string;
   unit_price: number;
   modifiers?: CartModifier[];
 }
 
 interface CartContextValue {
-  items: CartItem[];
-  add: (payload: AddPayload) => void;
-  remove: (product_id: string) => void;
-  updateQty: (product_id: string, quantity: number) => void;
-  clear: () => void;
+  items:      CartItem[];
+  add:        (payload: AddPayload) => void;
+  remove:     (line_id: string) => void;
+  updateQty:  (line_id: string, quantity: number) => void;
+  clear:      () => void;
   /** Sum of (unit_price + modifier deltas) × quantity for every line */
-  total: number;
+  total:      number;
   /** Sum of quantities across all lines */
-  itemCount: number;
+  itemCount:  number;
+}
+
+// ── Line-identity helper ──────────────────────────────────────────────────────
+
+/** Deterministic fingerprint for a product + modifier combination.
+ *  Sorts by option_id so insertion order doesn't affect identity. */
+export function makeLineId(product_id: string, modifiers: CartModifier[]): string {
+  const fingerprint = modifiers
+    .slice()
+    .sort((a, b) => a.option_id.localeCompare(b.option_id))
+    .map((m) => `${m.option_id}:${m.option_name}:${m.price_delta}`)
+    .join("|");
+  return `${product_id}::${fingerprint}`;
 }
 
 // ── Reducer ──────────────────────────────────────────────────────────────────
 
 type CartAction =
-  | { type: "ADD";      payload: Omit<CartItem, "quantity"> }
-  | { type: "REMOVE";   payload: string }                          // product_id
-  | { type: "UPDATE_QTY"; payload: { product_id: string; quantity: number } }
+  | { type: "ADD";        payload: Omit<CartItem, "quantity"> }
+  | { type: "REMOVE";     payload: string }                              // line_id
+  | { type: "UPDATE_QTY"; payload: { line_id: string; quantity: number } }
   | { type: "CLEAR" }
-  | { type: "HYDRATE";  payload: CartItem[] };
+  | { type: "HYDRATE";    payload: CartItem[] };
 
 function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
   switch (action.type) {
     case "ADD": {
-      const existing = state.find((i) => i.product_id === action.payload.product_id);
+      const existing = state.find((i) => i.line_id === action.payload.line_id);
       if (existing) {
         return state.map((i) =>
-          i.product_id === action.payload.product_id
+          i.line_id === action.payload.line_id
             ? { ...i, quantity: i.quantity + 1 }
             : i
         );
@@ -67,26 +84,30 @@ function cartReducer(state: CartItem[], action: CartAction): CartItem[] {
       return [...state, { ...action.payload, quantity: 1 }];
     }
     case "REMOVE": {
-      const existing = state.find((i) => i.product_id === action.payload);
+      const existing = state.find((i) => i.line_id === action.payload);
       if (!existing) return state;
       if (existing.quantity > 1) {
         return state.map((i) =>
-          i.product_id === action.payload ? { ...i, quantity: i.quantity - 1 } : i
+          i.line_id === action.payload ? { ...i, quantity: i.quantity - 1 } : i
         );
       }
-      return state.filter((i) => i.product_id !== action.payload);
+      return state.filter((i) => i.line_id !== action.payload);
     }
     case "UPDATE_QTY": {
-      const { product_id, quantity } = action.payload;
-      if (quantity <= 0) return state.filter((i) => i.product_id !== product_id);
+      const { line_id, quantity } = action.payload;
+      if (quantity <= 0) return state.filter((i) => i.line_id !== line_id);
       return state.map((i) =>
-        i.product_id === product_id ? { ...i, quantity } : i
+        i.line_id === line_id ? { ...i, quantity } : i
       );
     }
     case "CLEAR":
       return [];
     case "HYDRATE":
-      return action.payload;
+      // Back-fill line_id for any cart items persisted before this field was added.
+      return action.payload.map((item) => ({
+        ...item,
+        line_id: item.line_id ?? makeLineId(item.product_id, item.modifiers ?? []),
+      }));
     default:
       return state;
   }
@@ -125,20 +146,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, hydrated]);
 
-  const total = items.reduce((s, i) => s + lineUnitPrice(i) * i.quantity, 0);
+  const total     = items.reduce((s, i) => s + lineUnitPrice(i) * i.quantity, 0);
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
 
-  const add = (payload: AddPayload) =>
+  const add = (payload: AddPayload) => {
+    const modifiers = payload.modifiers ?? [];
     dispatch({
       type: "ADD",
-      payload: { ...payload, modifiers: payload.modifiers ?? [] },
+      payload: {
+        ...payload,
+        modifiers,
+        line_id: makeLineId(payload.product_id, modifiers),
+      },
     });
+  };
 
-  const remove = (product_id: string) =>
-    dispatch({ type: "REMOVE", payload: product_id });
+  const remove = (line_id: string) =>
+    dispatch({ type: "REMOVE", payload: line_id });
 
-  const updateQty = (product_id: string, quantity: number) =>
-    dispatch({ type: "UPDATE_QTY", payload: { product_id, quantity } });
+  const updateQty = (line_id: string, quantity: number) =>
+    dispatch({ type: "UPDATE_QTY", payload: { line_id, quantity } });
 
   const clear = () => dispatch({ type: "CLEAR" });
 

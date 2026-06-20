@@ -148,7 +148,12 @@ export default function MenuPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {(current?.products ?? []).map((item) => {
-              const ic        = cart.items.find((i) => i.product_id === item.id);
+              // ic   — the single cart line for this product (plain items only have one)
+              // icCount — total quantity across all configurations (for the badge on customisable items)
+              const ic      = cart.items.find((i) => i.product_id === item.id);
+              const icCount = cart.items
+                .filter((i) => i.product_id === item.id)
+                .reduce((s, i) => s + i.quantity, 0);
               const isSpecial = item.is_featured;
 
               return (
@@ -186,15 +191,15 @@ export default function MenuPage() {
                     {/* Action button — 3-way routing */}
                     <div>
                       {isPizzaCat ? (
-                        // Pizza → open PizzaCustomizer
+                        // Pizza → open PizzaCustomizer; badge shows total across all configs
                         <button
                           onClick={() => setCustomizerProduct(item)}
                           style={{
-                            background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
-                            border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
+                            background:   icCount > 0 ? "#dc2626" : "rgba(220,38,38,0.15)",
+                            border:       icCount > 0 ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
                             borderRadius: 10,
                             padding:      "8px 14px",
-                            color:        ic ? "white" : "#fca5a5",
+                            color:        icCount > 0 ? "white" : "#fca5a5",
                             fontWeight:   700,
                             fontSize:     12,
                             cursor:       "pointer",
@@ -202,18 +207,18 @@ export default function MenuPage() {
                             whiteSpace:   "nowrap",
                           }}
                         >
-                          {ic ? `🍕 ${ic.quantity}` : "+ הוסף"}
+                          {icCount > 0 ? `🍕 ${icCount}` : "+ הוסף"}
                         </button>
                       ) : productsWithModifiers.has(item.id) ? (
                         // Non-pizza with modifier groups → open AddonCustomizer
                         <button
                           onClick={() => setAddonProduct(item)}
                           style={{
-                            background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
-                            border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
+                            background:   icCount > 0 ? "#dc2626" : "rgba(220,38,38,0.15)",
+                            border:       icCount > 0 ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
                             borderRadius: 10,
                             padding:      "8px 14px",
-                            color:        ic ? "white" : "#fca5a5",
+                            color:        icCount > 0 ? "white" : "#fca5a5",
                             fontWeight:   700,
                             fontSize:     12,
                             cursor:       "pointer",
@@ -221,14 +226,14 @@ export default function MenuPage() {
                             whiteSpace:   "nowrap",
                           }}
                         >
-                          {ic ? `✓ ${ic.quantity}` : "+ הוסף"}
+                          {icCount > 0 ? `✓ ${icCount}` : "+ הוסף"}
                         </button>
                       ) : (
                         // Plain item → inline +/- or one-tap add
                         ic ? (
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <button
-                              onClick={() => cart.remove(item.id)}
+                              onClick={() => cart.remove(ic.line_id)}
                               style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "none", color: "white", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}
                             >−</button>
                             <span style={{ fontWeight: 900, minWidth: 18, textAlign: "center" }}>{ic.quantity}</span>
@@ -276,32 +281,32 @@ export default function MenuPage() {
                   {cart.items.map((item) => {
                     const unitTotal = lineUnitPrice(item);
                     return (
-                      <div key={item.product_id} style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div key={item.line_id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: 12, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 700 }}>
                             {item.name_he}
                           </p>
                           {item.modifiers.length > 0 && (
-                            <p style={{ margin: "2px 0 0", fontSize: 10, color: "rgba(255,255,255,0.3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {item.modifiers.map((m) => m.option_name).join(", ")}
+                            <p style={{ margin: "3px 0 0", fontSize: 10, color: "rgba(255,255,255,0.3)", lineHeight: 1.6 }}>
+                              {item.modifiers.map((m) => m.option_name).join(" · ")}
                             </p>
                           )}
-                          <p style={{ margin: "2px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
+                          <p style={{ margin: "4px 0 0", fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
                             {unitTotal}₪ × {item.quantity}
                           </p>
                         </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, paddingTop: 1 }}>
                           <button
-                            onClick={() => cart.remove(item.product_id)}
+                            onClick={() => cart.remove(item.line_id)}
                             style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.08)", border: "none", color: "white", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
                           >−</button>
                           <span style={{ fontWeight: 800, fontSize: 13, minWidth: 14, textAlign: "center" }}>{item.quantity}</span>
                           <button
-                            onClick={() => cart.updateQty(item.product_id, item.quantity + 1)}
+                            onClick={() => cart.updateQty(item.line_id, item.quantity + 1)}
                             style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(220,38,38,0.3)", border: "none", color: "white", cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}
                           >+</button>
                         </div>
-                        <span style={{ color: "#ef4444", fontWeight: 800, fontSize: 13, minWidth: 40, textAlign: "left" }}>
+                        <span style={{ color: "#ef4444", fontWeight: 800, fontSize: 13, minWidth: 40, textAlign: "left", flexShrink: 0, paddingTop: 1 }}>
                           {unitTotal * item.quantity}₪
                         </span>
                       </div>
