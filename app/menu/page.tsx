@@ -6,7 +6,7 @@ import type { Product } from "@/types/menu";
 import { useCart, lineUnitPrice } from "@/lib/cart-context";
 import PizzaCustomizer from "@/components/PizzaCustomizer";
 import AddonCustomizer from "@/components/AddonCustomizer";
-import ItalianCustomizer from "@/components/ItalianCustomizer";
+import ItalianBuilder from "@/components/ItalianBuilder";
 import { fetchProductsWithModifiers } from "@/lib/addon-modifiers";
 
 const PIZZA_CATEGORY   = "פיצות";
@@ -33,7 +33,6 @@ export default function MenuPage() {
 
   // null = sheet closed; a Product = sheet open for that product
   const [customizerProduct, setCustomizerProduct] = useState<Product | null>(null);
-  const [italianProduct,    setItalianProduct]    = useState<Product | null>(null);
   const [addonProduct,      setAddonProduct]      = useState<Product | null>(null);
 
   const cart = useCart();
@@ -53,16 +52,6 @@ export default function MenuPage() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
-
-  // Auto-open ItalianCustomizer when the האיטלקיה tab is selected.
-  // Deps include both cat and categories so it fires even if categories
-  // loads after the tab is already selected.
-  useEffect(() => {
-    if (cat !== ITALIAN_CATEGORY) return;
-    const first = categories.find((c) => c.name_he === ITALIAN_CATEGORY)?.products[0];
-    if (first) setItalianProduct(first);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cat, categories]);
 
   const current        = categories.find((c) => c.name_he === cat);
   const pizzaProducts  = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
@@ -151,131 +140,117 @@ export default function MenuPage() {
         </div>
       </header>
 
-      {/* ── Product list ── */}
+      {/* ── Product list / inline builder ── */}
       <main style={{ maxWidth: 600, margin: "0 auto", padding: "20px 16px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {(current?.products ?? []).map((item) => {
-            const ic        = cart.items.find((i) => i.product_id === item.id);
-            const isSpecial = item.is_featured;
+        {isItalianCat && current?.products[0] ? (
+          // האיטלקיה: render the builder inline — no card, no sheet
+          <ItalianBuilder product={current.products[0]} />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {(current?.products ?? []).map((item) => {
+              const ic        = cart.items.find((i) => i.product_id === item.id);
+              const isSpecial = item.is_featured;
 
-            return (
-              <div
-                key={item.id}
-                style={{
-                  background:   isSpecial ? "rgba(220,38,38,0.08)" : "rgba(255,255,255,0.03)",
-                  border:       isSpecial ? "1px solid rgba(220,38,38,0.3)" : "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 16,
-                  overflow:     "hidden",
-                  display:      "flex",
-                  alignItems:   "stretch",
-                }}
-              >
-                {item.image_url && (
-                  <div style={{ width: 90, flexShrink: 0, background: "#111", overflow: "hidden" }}>
-                    <img src={item.image_url} alt={item.name_he} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  </div>
-                )}
-                <div style={{ flex: 1, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontWeight: 800, fontSize: 14, margin: 0, color: isSpecial ? "#fca5a5" : "white" }}>
-                      {item.name_he}
-                    </p>
-                    {item.description && (
-                      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "3px 0 0" }}>
-                        {item.description}
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    background:   isSpecial ? "rgba(220,38,38,0.08)" : "rgba(255,255,255,0.03)",
+                    border:       isSpecial ? "1px solid rgba(220,38,38,0.3)" : "1px solid rgba(255,255,255,0.06)",
+                    borderRadius: 16,
+                    overflow:     "hidden",
+                    display:      "flex",
+                    alignItems:   "stretch",
+                  }}
+                >
+                  {item.image_url && (
+                    <div style={{ width: 90, flexShrink: 0, background: "#111", overflow: "hidden" }}>
+                      <img src={item.image_url} alt={item.name_he} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    </div>
+                  )}
+                  <div style={{ flex: 1, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 800, fontSize: 14, margin: 0, color: isSpecial ? "#fca5a5" : "white" }}>
+                        {item.name_he}
                       </p>
-                    )}
-                    <p style={{ color: "#ef4444", fontWeight: 900, fontSize: 17, margin: "6px 0 0" }}>
-                      {item.base_price}₪
-                    </p>
-                  </div>
+                      {item.description && (
+                        <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, margin: "3px 0 0" }}>
+                          {item.description}
+                        </p>
+                      )}
+                      <p style={{ color: "#ef4444", fontWeight: 900, fontSize: 17, margin: "6px 0 0" }}>
+                        {item.base_price}₪
+                      </p>
+                    </div>
 
-                  {/* Action button — 4-way routing */}
-                  <div>
-                    {isPizzaCat ? (
-                      // Pizza → open PizzaCustomizer
-                      <button
-                        onClick={() => setCustomizerProduct(item)}
-                        style={{
-                          background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
-                          border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
-                          borderRadius: 10,
-                          padding:      "8px 14px",
-                          color:        ic ? "white" : "#fca5a5",
-                          fontWeight:   700,
-                          fontSize:     12,
-                          cursor:       "pointer",
-                          fontFamily:   "inherit",
-                          whiteSpace:   "nowrap",
-                        }}
-                      >
-                        {ic ? `🍕 ${ic.quantity}` : "+ הוסף"}
-                      </button>
-                    ) : isItalianCat ? (
-                      // האיטלקיה category → open ItalianCustomizer
-                      <button
-                        onClick={() => setItalianProduct(item)}
-                        style={{
-                          background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
-                          border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
-                          borderRadius: 10,
-                          padding:      "8px 14px",
-                          color:        ic ? "white" : "#fca5a5",
-                          fontWeight:   700,
-                          fontSize:     12,
-                          cursor:       "pointer",
-                          fontFamily:   "inherit",
-                          whiteSpace:   "nowrap",
-                        }}
-                      >
-                        {ic ? `🍝 ${ic.quantity}` : "+ הוסף"}
-                      </button>
-                    ) : productsWithModifiers.has(item.id) ? (
-                      // Non-pizza with modifier groups → open AddonCustomizer
-                      <button
-                        onClick={() => setAddonProduct(item)}
-                        style={{
-                          background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
-                          border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
-                          borderRadius: 10,
-                          padding:      "8px 14px",
-                          color:        ic ? "white" : "#fca5a5",
-                          fontWeight:   700,
-                          fontSize:     12,
-                          cursor:       "pointer",
-                          fontFamily:   "inherit",
-                          whiteSpace:   "nowrap",
-                        }}
-                      >
-                        {ic ? `✓ ${ic.quantity}` : "+ הוסף"}
-                      </button>
-                    ) : (
-                      // Plain item (no modifier groups) → inline +/- or one-tap add
-                      ic ? (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button
-                            onClick={() => cart.remove(item.id)}
-                            style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "none", color: "white", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}
-                          >−</button>
-                          <span style={{ fontWeight: 900, minWidth: 18, textAlign: "center" }}>{ic.quantity}</span>
+                    {/* Action button — 3-way routing */}
+                    <div>
+                      {isPizzaCat ? (
+                        // Pizza → open PizzaCustomizer
+                        <button
+                          onClick={() => setCustomizerProduct(item)}
+                          style={{
+                            background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
+                            border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
+                            borderRadius: 10,
+                            padding:      "8px 14px",
+                            color:        ic ? "white" : "#fca5a5",
+                            fontWeight:   700,
+                            fontSize:     12,
+                            cursor:       "pointer",
+                            fontFamily:   "inherit",
+                            whiteSpace:   "nowrap",
+                          }}
+                        >
+                          {ic ? `🍕 ${ic.quantity}` : "+ הוסף"}
+                        </button>
+                      ) : productsWithModifiers.has(item.id) ? (
+                        // Non-pizza with modifier groups → open AddonCustomizer
+                        <button
+                          onClick={() => setAddonProduct(item)}
+                          style={{
+                            background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
+                            border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
+                            borderRadius: 10,
+                            padding:      "8px 14px",
+                            color:        ic ? "white" : "#fca5a5",
+                            fontWeight:   700,
+                            fontSize:     12,
+                            cursor:       "pointer",
+                            fontFamily:   "inherit",
+                            whiteSpace:   "nowrap",
+                          }}
+                        >
+                          {ic ? `✓ ${ic.quantity}` : "+ הוסף"}
+                        </button>
+                      ) : (
+                        // Plain item → inline +/- or one-tap add
+                        ic ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <button
+                              onClick={() => cart.remove(item.id)}
+                              style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.1)", border: "none", color: "white", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}
+                            >−</button>
+                            <span style={{ fontWeight: 900, minWidth: 18, textAlign: "center" }}>{ic.quantity}</span>
+                            <button
+                              onClick={() => cart.add({ product_id: item.id, name_he: item.name_he, unit_price: item.base_price })}
+                              style={{ width: 30, height: 30, borderRadius: "50%", background: "#dc2626", border: "none", color: "white", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}
+                            >+</button>
+                          </div>
+                        ) : (
                           <button
                             onClick={() => cart.add({ product_id: item.id, name_he: item.name_he, unit_price: item.base_price })}
-                            style={{ width: 30, height: 30, borderRadius: "50%", background: "#dc2626", border: "none", color: "white", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}
-                          >+</button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => cart.add({ product_id: item.id, name_he: item.name_he, unit_price: item.base_price })}
-                          style={{ background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "8px 14px", color: "#fca5a5", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-                        >+ הוסף</button>
-                      )
-                    )}
+                            style={{ background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.4)", borderRadius: 10, padding: "8px 14px", color: "#fca5a5", fontWeight: 700, fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+                          >+ הוסף</button>
+                        )
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </main>
 
       {/* ── Cart drawer ── */}
@@ -362,19 +337,6 @@ export default function MenuPage() {
         <AddonCustomizer
           product={addonProduct}
           onClose={() => setAddonProduct(null)}
-        />
-      )}
-
-      {/* ── Italian customizer sheet ── */}
-      {italianProduct && (
-        <ItalianCustomizer
-          product={italianProduct}
-          onClose={() => {
-            setItalianProduct(null);
-            // Switch away from the Italian tab so the bare single-card view
-            // never shows and the auto-open effect doesn't immediately refire.
-            setCat(categories[0]?.name_he ?? PIZZA_CATEGORY);
-          }}
         />
       )}
 
