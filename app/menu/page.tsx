@@ -54,6 +54,16 @@ export default function MenuPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
+  // Auto-open ItalianCustomizer when the האיטלקיה tab is selected.
+  // Deps include both cat and categories so it fires even if categories
+  // loads after the tab is already selected.
+  useEffect(() => {
+    if (cat !== ITALIAN_CATEGORY) return;
+    const first = categories.find((c) => c.name_he === ITALIAN_CATEGORY)?.products[0];
+    if (first) setItalianProduct(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cat, categories]);
+
   const current        = categories.find((c) => c.name_he === cat);
   const pizzaProducts  = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
   const isPizzaCat     = cat === PIZZA_CATEGORY;
@@ -359,7 +369,12 @@ export default function MenuPage() {
       {italianProduct && (
         <ItalianCustomizer
           product={italianProduct}
-          onClose={() => setItalianProduct(null)}
+          onClose={() => {
+            setItalianProduct(null);
+            // Switch away from the Italian tab so the bare single-card view
+            // never shows and the auto-open effect doesn't immediately refire.
+            setCat(categories[0]?.name_he ?? PIZZA_CATEGORY);
+          }}
         />
       )}
 
