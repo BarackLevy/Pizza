@@ -6,9 +6,9 @@ import type { Product } from "@/types/menu";
 import { useCart, lineUnitPrice } from "@/lib/cart-context";
 import PizzaCustomizer from "@/components/PizzaCustomizer";
 import AddonCustomizer from "@/components/AddonCustomizer";
+import { fetchProductsWithModifiers } from "@/lib/addon-modifiers";
 
-const PIZZA_CATEGORY   = "פיצות";
-const ADDON_CATEGORIES = new Set(["זיווה", "מלאווח", "סלטים", "פסטות"]);
+const PIZZA_CATEGORY = "פיצות";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "פיצות":       "🍕",
@@ -22,10 +22,11 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function MenuPage() {
-  const [categories, setCategories] = useState<CategoryWithProducts[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState(false);
-  const [cat,        setCat]        = useState("");
+  const [categories,            setCategories]            = useState<CategoryWithProducts[]>([]);
+  const [productsWithModifiers, setProductsWithModifiers] = useState<Set<string>>(new Set());
+  const [loading,               setLoading]               = useState(true);
+  const [error,                 setError]                 = useState(false);
+  const [cat,                   setCat]                   = useState("");
   const [cartOpen,   setCartOpen]   = useState(false);
 
   // null = sheet closed; a Product = sheet open for that product
@@ -37,9 +38,10 @@ export default function MenuPage() {
   function load() {
     setLoading(true);
     setError(false);
-    fetchMenu()
-      .then((data) => {
+    Promise.all([fetchMenu(), fetchProductsWithModifiers()])
+      .then(([data, withMods]) => {
         setCategories(data);
+        setProductsWithModifiers(withMods);
         if (data.length > 0) setCat(data[0].name_he);
       })
       .catch(() => setError(true))
@@ -52,7 +54,6 @@ export default function MenuPage() {
   const current       = categories.find((c) => c.name_he === cat);
   const pizzaProducts = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
   const isPizzaCat    = cat === PIZZA_CATEGORY;
-  const isAddonCat    = ADDON_CATEGORIES.has(cat);
 
   if (loading) {
     return (
@@ -196,8 +197,8 @@ export default function MenuPage() {
                       >
                         {ic ? `🍕 ${ic.quantity}` : "+ הוסף"}
                       </button>
-                    ) : isAddonCat ? (
-                      // Add-on category → open AddonCustomizer
+                    ) : productsWithModifiers.has(item.id) ? (
+                      // Non-pizza with modifier groups → open AddonCustomizer
                       <button
                         onClick={() => setAddonProduct(item)}
                         style={{
@@ -216,7 +217,7 @@ export default function MenuPage() {
                         {ic ? `✓ ${ic.quantity}` : "+ הוסף"}
                       </button>
                     ) : (
-                      // Plain item → inline +/- or one-tap add
+                      // Plain item (no modifier groups) → inline +/- or one-tap add
                       ic ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <button
