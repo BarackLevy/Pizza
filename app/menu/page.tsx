@@ -6,9 +6,11 @@ import type { Product } from "@/types/menu";
 import { useCart, lineUnitPrice } from "@/lib/cart-context";
 import PizzaCustomizer from "@/components/PizzaCustomizer";
 import AddonCustomizer from "@/components/AddonCustomizer";
+import ItalianCustomizer from "@/components/ItalianCustomizer";
 import { fetchProductsWithModifiers } from "@/lib/addon-modifiers";
 
-const PIZZA_CATEGORY = "פיצות";
+const PIZZA_CATEGORY   = "פיצות";
+const ITALIAN_CATEGORY = "האיטלקיה";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "פיצות":       "🍕",
@@ -31,6 +33,7 @@ export default function MenuPage() {
 
   // null = sheet closed; a Product = sheet open for that product
   const [customizerProduct, setCustomizerProduct] = useState<Product | null>(null);
+  const [italianProduct,    setItalianProduct]    = useState<Product | null>(null);
   const [addonProduct,      setAddonProduct]      = useState<Product | null>(null);
 
   const cart = useCart();
@@ -51,9 +54,10 @@ export default function MenuPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, []);
 
-  const current       = categories.find((c) => c.name_he === cat);
-  const pizzaProducts = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
-  const isPizzaCat    = cat === PIZZA_CATEGORY;
+  const current        = categories.find((c) => c.name_he === cat);
+  const pizzaProducts  = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
+  const isPizzaCat     = cat === PIZZA_CATEGORY;
+  const isItalianCat   = cat === ITALIAN_CATEGORY;
 
   if (loading) {
     return (
@@ -176,7 +180,7 @@ export default function MenuPage() {
                     </p>
                   </div>
 
-                  {/* Action button — 3-way routing */}
+                  {/* Action button — 4-way routing */}
                   <div>
                     {isPizzaCat ? (
                       // Pizza → open PizzaCustomizer
@@ -196,6 +200,25 @@ export default function MenuPage() {
                         }}
                       >
                         {ic ? `🍕 ${ic.quantity}` : "+ הוסף"}
+                      </button>
+                    ) : isItalianCat ? (
+                      // האיטלקיה category → open ItalianCustomizer
+                      <button
+                        onClick={() => setItalianProduct(item)}
+                        style={{
+                          background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
+                          border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
+                          borderRadius: 10,
+                          padding:      "8px 14px",
+                          color:        ic ? "white" : "#fca5a5",
+                          fontWeight:   700,
+                          fontSize:     12,
+                          cursor:       "pointer",
+                          fontFamily:   "inherit",
+                          whiteSpace:   "nowrap",
+                        }}
+                      >
+                        {ic ? `🍝 ${ic.quantity}` : "+ הוסף"}
                       </button>
                     ) : productsWithModifiers.has(item.id) ? (
                       // Non-pizza with modifier groups → open AddonCustomizer
@@ -329,6 +352,14 @@ export default function MenuPage() {
         <AddonCustomizer
           product={addonProduct}
           onClose={() => setAddonProduct(null)}
+        />
+      )}
+
+      {/* ── Italian customizer sheet ── */}
+      {italianProduct && (
+        <ItalianCustomizer
+          product={italianProduct}
+          onClose={() => setItalianProduct(null)}
         />
       )}
 
