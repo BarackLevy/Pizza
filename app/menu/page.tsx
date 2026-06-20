@@ -5,8 +5,10 @@ import type { CategoryWithProducts } from "@/lib/menu";
 import type { Product } from "@/types/menu";
 import { useCart, lineUnitPrice } from "@/lib/cart-context";
 import PizzaCustomizer from "@/components/PizzaCustomizer";
+import AddonCustomizer from "@/components/AddonCustomizer";
 
-const PIZZA_CATEGORY = "פיצות";
+const PIZZA_CATEGORY   = "פיצות";
+const ADDON_CATEGORIES = new Set(["זיווה", "מלאווח", "סלטים", "פסטות"]);
 
 const CATEGORY_ICONS: Record<string, string> = {
   "פיצות":       "🍕",
@@ -26,8 +28,9 @@ export default function MenuPage() {
   const [cat,        setCat]        = useState("");
   const [cartOpen,   setCartOpen]   = useState(false);
 
-  // null = sheet closed; a Product = sheet open for that pizza
+  // null = sheet closed; a Product = sheet open for that product
   const [customizerProduct, setCustomizerProduct] = useState<Product | null>(null);
+  const [addonProduct,      setAddonProduct]      = useState<Product | null>(null);
 
   const cart = useCart();
 
@@ -49,6 +52,7 @@ export default function MenuPage() {
   const current       = categories.find((c) => c.name_he === cat);
   const pizzaProducts = categories.find((c) => c.name_he === PIZZA_CATEGORY)?.products ?? [];
   const isPizzaCat    = cat === PIZZA_CATEGORY;
+  const isAddonCat    = ADDON_CATEGORIES.has(cat);
 
   if (loading) {
     return (
@@ -171,10 +175,10 @@ export default function MenuPage() {
                     </p>
                   </div>
 
-                  {/* Action button */}
+                  {/* Action button — 3-way routing */}
                   <div>
                     {isPizzaCat ? (
-                      // Pizza → always open the customizer sheet
+                      // Pizza → open PizzaCustomizer
                       <button
                         onClick={() => setCustomizerProduct(item)}
                         style={{
@@ -192,8 +196,27 @@ export default function MenuPage() {
                       >
                         {ic ? `🍕 ${ic.quantity}` : "+ הוסף"}
                       </button>
+                    ) : isAddonCat ? (
+                      // Add-on category → open AddonCustomizer
+                      <button
+                        onClick={() => setAddonProduct(item)}
+                        style={{
+                          background:   ic ? "#dc2626" : "rgba(220,38,38,0.15)",
+                          border:       ic ? "1px solid #dc2626" : "1px solid rgba(220,38,38,0.4)",
+                          borderRadius: 10,
+                          padding:      "8px 14px",
+                          color:        ic ? "white" : "#fca5a5",
+                          fontWeight:   700,
+                          fontSize:     12,
+                          cursor:       "pointer",
+                          fontFamily:   "inherit",
+                          whiteSpace:   "nowrap",
+                        }}
+                      >
+                        {ic ? `✓ ${ic.quantity}` : "+ הוסף"}
+                      </button>
                     ) : (
-                      // Non-pizza → inline +/- or add button
+                      // Plain item → inline +/- or one-tap add
                       ic ? (
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <button
@@ -297,6 +320,14 @@ export default function MenuPage() {
           product={customizerProduct}
           allPizzas={pizzaProducts}
           onClose={() => setCustomizerProduct(null)}
+        />
+      )}
+
+      {/* ── Add-on customizer sheet ── */}
+      {addonProduct && (
+        <AddonCustomizer
+          product={addonProduct}
+          onClose={() => setAddonProduct(null)}
         />
       )}
 
